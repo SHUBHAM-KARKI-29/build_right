@@ -1,6 +1,15 @@
-import logo from './assets/build-right-logo.jpeg'
+import logo from './assets/build-right-logo.png'
 import { useState } from 'react'
 import './App.css'
+
+const dashboardSections = [
+{ name: 'Overview', icon: '▦' },
+{ name: 'Projects', icon: '▣' },
+{ name: 'Requirements', icon: '☷' },
+{ name: 'Test Cases', icon: '✓' },
+{ name: 'Bugs', icon: '⚑' },
+{ name: 'Reports', icon: '▤' },
+]
 
 function App() {
 const [isLogin, setIsLogin] = useState(true)
@@ -9,6 +18,8 @@ const [email, setEmail] = useState('')
 const [password, setPassword] = useState('')
 const [message, setMessage] = useState('')
 const [isLoading, setIsLoading] = useState(false)
+const [user, setUser] = useState(null)
+const [activeSection, setActiveSection] = useState('Overview')
 
 async function handleSubmit(event) {
 event.preventDefault()
@@ -26,9 +37,7 @@ const requestBody = isLogin
 try {
   const response = await fetch(endpoint, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(requestBody),
   })
 
@@ -50,20 +59,198 @@ try {
       sessionStorage.setItem('build_right_token', data.token)
     }
 
-    setMessage(`Welcome back${data.name ? `, ${data.name}` : ''}! Login successful.`)
+    setUser({
+      name: data.name || email.split('@')[0],
+      email: data.email || email,
+    })
+    setActiveSection('Overview')
   } else {
     setMessage('Account created successfully! You can now log in.')
     setIsLogin(true)
     setName('')
     setPassword('')
   }
-} catch (error) {
+} catch {
   setMessage(
     'Could not connect to the backend. Check that it is running and try again.'
   )
 } finally {
   setIsLoading(false)
 }
+
+}
+
+function handleLogout() {
+sessionStorage.removeItem('build_right_token')
+setUser(null)
+setPassword('')
+setMessage('')
+setIsLogin(true)
+setActiveSection('Overview')
+}
+
+if (user) {
+return (
+<main className="dashboard">
+<aside className="sidebar">
+<div className="sidebar-brand">
+<img src={logo} alt="build_right logo" />
+</div>
+
+      <p className="sidebar-label">WORKSPACE</p>
+
+      <nav className="sidebar-nav">
+        {dashboardSections.map((section) => (
+          <button
+            key={section.name}
+            type="button"
+            className={
+              activeSection === section.name
+                ? 'nav-item active'
+                : 'nav-item'
+            }
+            onClick={() => setActiveSection(section.name)}
+          >
+            <span className="nav-icon">{section.icon}</span>
+            {section.name}
+          </button>
+        ))}
+      </nav>
+
+      <div className="sidebar-bottom">
+        <div className="user-avatar">
+          {user.name.charAt(0).toUpperCase()}
+        </div>
+        <div className="sidebar-user">
+          <strong>{user.name}</strong>
+          <span>{user.email}</span>
+        </div>
+        <button
+          className="logout-button"
+          type="button"
+          onClick={handleLogout}
+          title="Log out"
+          aria-label="Log out"
+        >
+          ↪
+        </button>
+      </div>
+    </aside>
+
+    <section className="dashboard-main">
+      <header className="dashboard-header">
+        <div>
+          <p className="breadcrumb">Workspace / {activeSection}</p>
+          <h1>
+            {activeSection === 'Overview'
+              ? 'Dashboard'
+              : activeSection}
+          </h1>
+        </div>
+        <div className="header-profile">
+          <span className="status-dot" />
+          {user.name}
+        </div>
+      </header>
+
+      {activeSection === 'Overview' ? (
+        <div className="dashboard-content">
+          <section className="welcome-banner">
+            <div>
+              <p className="eyebrow">YOUR QUALITY WORKSPACE</p>
+              <h2>Welcome back, {user.name}!</h2>
+              <p>
+                Plan your work, organize test cases, and improve
+                software quality—all in one place.
+              </p>
+            </div>
+            <div className="welcome-symbol">✦</div>
+          </section>
+
+          <div className="section-heading">
+            <div>
+              <h2>Workspace overview</h2>
+              <p>Keep track of your software quality activities.</p>
+            </div>
+          </div>
+
+          <div className="stats-grid">
+            <article className="stat-card">
+              <div className="stat-icon purple">▣</div>
+              <p>Total projects</p>
+              <strong>0</strong>
+              <span>No projects created yet</span>
+            </article>
+
+            <article className="stat-card">
+              <div className="stat-icon blue">☷</div>
+              <p>Requirements</p>
+              <strong>0</strong>
+              <span>Track what to build</span>
+            </article>
+
+            <article className="stat-card">
+              <div className="stat-icon green">✓</div>
+              <p>Test cases</p>
+              <strong>0</strong>
+              <span>Validate your features</span>
+            </article>
+
+            <article className="stat-card">
+              <div className="stat-icon orange">⚑</div>
+              <p>Open bugs</p>
+              <strong>0</strong>
+              <span>Track issues to resolve</span>
+            </article>
+          </div>
+
+          <section className="recent-panel">
+            <div>
+              <h2>Get started</h2>
+              <p>Your workspace is ready for its first project.</p>
+            </div>
+            <button
+              className="primary-action"
+              type="button"
+              onClick={() => setActiveSection('Projects')}
+            >
+              Explore projects <span>→</span>
+            </button>
+          </section>
+
+          <p className="dashboard-note">
+            Project statistics will appear here as you add real data.
+          </p>
+        </div>
+      ) : (
+        <div className="dashboard-content">
+          <section className="section-placeholder">
+            <div className="placeholder-icon">
+              {dashboardSections.find(
+                (section) => section.name === activeSection
+              )?.icon}
+            </div>
+            <h2>{activeSection}</h2>
+            <p>
+              This section is ready for the next development step.
+              We'll add its functionality as build_right grows.
+            </p>
+            {activeSection === 'Projects' && (
+              <button
+                className="primary-action"
+                type="button"
+                onClick={() => setMessage('Project creation will be added in a later step.')}
+              >
+                Plan a new project
+              </button>
+            )}
+            {message && <p role="status">{message}</p>}
+          </section>
+        </div>
+      )}
+    </section>
+  </main>
+)
 
 }
 

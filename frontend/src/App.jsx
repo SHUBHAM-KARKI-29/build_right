@@ -1,5 +1,5 @@
 import logo from './assets/build-right-logo.png'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import './App.css'
 
 const dashboardSections = [
@@ -18,8 +18,50 @@ const [email, setEmail] = useState('')
 const [password, setPassword] = useState('')
 const [message, setMessage] = useState('')
 const [isLoading, setIsLoading] = useState(false)
-const [user, setUser] = useState(null)
+const [user, setUser] = useState(() => {
+  const token = sessionStorage.getItem('build_right_token')
+  const savedUser = sessionStorage.getItem('build_right_user')
+
+  if (!token || !savedUser) return null
+
+  try {
+    return JSON.parse(savedUser)
+  } catch {
+    return null
+  }
+})
 const [activeSection, setActiveSection] = useState('Overview')
+const [projectName, setProjectName] = useState('')
+const [projectDescription, setProjectDescription] = useState('')
+const [projects, setProjects] = useState([])
+
+useEffect(() => {
+  if (!user) return
+
+  const loadProjects = async () => {
+    try {
+      const token = sessionStorage.getItem('build_right_token')
+
+      const response = await fetch('http://localhost:8080/api/projects', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error(`Request failed: ${response.status}`)
+      }
+
+      const savedProjects = await response.json()
+      setProjects(savedProjects)
+    } catch (error) {
+      console.error('Failed to load projects:', error)
+      setMessage('Could not load saved projects.')
+    }
+  }
+
+  loadProjects()
+}, [user])
 
 async function handleSubmit(event) {
 event.preventDefault()
@@ -63,6 +105,15 @@ try {
       name: data.name || email.split('@')[0],
       email: data.email || email,
     })
+
+    sessionStorage.setItem(
+      'build_right_user',
+      JSON.stringify({
+        name: data.name || email.split('@')[0],
+        email: data.email || email,
+      })
+    )
+    
     setActiveSection('Overview')
   } else {
     setMessage('Account created successfully! You can now log in.')
@@ -235,24 +286,103 @@ return (
               This section is ready for the next development step.
               We'll add its functionality as build_right grows.
             </p>
-            {activeSection === 'Projects' && (
-              <button
-                className="primary-action"
-                type="button"
-                onClick={() => setMessage('Project creation will be added in a later step.')}
-              >
-                Plan a new project
-              </button>
-            )}
-            {message && <p role="status">{message}</p>}
-          </section>
-        </div>
-      )}
-    </section>
-  </main>
-)
+          {activeSection === 'Projects' && (
+            <>
+              <form
+                className="project-form"
+                onSubmit={async (event) => {
+                  event.preventDefault()
+                  setMessage('Creating project...')
 
+                  try {
+                    const token = sessionStorage.getItem('build_right_token')
+
+                    const response = await fetch('http://localhost:8080/api/projects', {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${token}`,
+                      },
+                      body: JSON.stringify({
+                        name: projectName.trim(),
+                        description: projectDescription.trim(),
+                      }),
+                    })
+
+                    if (!response.ok) {
+                      throw new Error(`Request failed: ${response.status}`)
+                    }
+
+                    const savedProject = await response.json()
+
+                    setProjects((currentProjects) => [
+                      ...currentProjects,
+                      savedProject,
+                    ])
+
+                    setProjectName('')
+                    setProjectDescription('')
+                    setMessage('Project created successfully!')
+                  } catch (error) {
+                    console.error('Project creation failed:', error)
+                    setMessage('Could not create project. Please check your login and backend.')
+                  }
+                }}
+              >
+
+                <label>
+                  Project name
+                  <input
+                    type="text"
+                    placeholder="e.g. E-commerce Testing Platform"
+                    value={projectName}
+                    onChange={(event) => setProjectName(event.target.value)}
+                    required
+                  />
+                </label>
+
+                <label>
+                  Project description
+                  <textarea
+                    placeholder="Describe what your project will do..."
+                    value={projectDescription}
+                    onChange={(event) =>
+                      setProjectDescription(event.target.value)
+                    }
+                    rows={4}
+                    required
+                  />
+                </label>
+
+                <button className="primary-action" type="submit">
+                  Create project
+                </button>
+              </form>
+
+              {projects.length > 0 && (
+                <div className="projects-list">
+                  <h3>Your projects</h3>
+
+                  {projects.map((project) => (
+                    <article className="project-card" key={project.id}>
+                      <h4>{project.name}</h4>
+                      <p>{project.description}</p>
+                    </article>
+                  ))}
+                </div>
+              )}
+
+              {message && <p role="status">{message}</p>}
+            </>
+          )}
+        </section>
+      </div>
+    )}
+  </section>
+</main>
+)
 }
+
 
 return (
 <main className="auth-page">

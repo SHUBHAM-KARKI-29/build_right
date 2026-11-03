@@ -1,4 +1,3 @@
-
 package build_right_backend.config;
 
 import org.springframework.context.annotation.Bean;

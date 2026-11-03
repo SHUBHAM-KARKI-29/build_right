@@ -35,6 +35,13 @@ const [projectName, setProjectName] = useState('')
 const [projectDescription, setProjectDescription] = useState('')
 const [projects, setProjects] = useState([])
 
+const [selectedProjectId, setSelectedProjectId] = useState('')
+const [requirementTitle, setRequirementTitle] = useState('')
+const [requirementDescription, setRequirementDescription] = useState('')
+const [requirements, setRequirements] = useState([])
+const [requirementMessage, setRequirementMessage] = useState('')
+const [isRequirementLoading, setIsRequirementLoading] = useState(false)
+
 useEffect(() => {
   if (!user) return
 
@@ -62,6 +69,50 @@ useEffect(() => {
 
   loadProjects()
 }, [user])
+
+useEffect(() => {
+  if (!selectedProjectId && projects.length > 0) {
+    setSelectedProjectId(String(projects[0].id))
+  }
+}, [projects, selectedProjectId])
+
+useEffect(() => {
+  if (activeSection !== 'Requirements' || !selectedProjectId || !user) {
+    return
+  }
+
+  const loadRequirements = async () => {
+    setIsRequirementLoading(true)
+    setRequirementMessage('')
+
+    try {
+      const token = sessionStorage.getItem('build_right_token')
+
+      const response = await fetch(
+        `http://localhost:8080/api/requirements/project/${selectedProjectId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      )
+
+      if (!response.ok) {
+        throw new Error(`Request failed: ${response.status}`)
+      }
+
+      const data = await response.json()
+      setRequirements(data)
+    } catch (error) {
+      console.error('Failed to load requirements:', error)
+      setRequirementMessage('Could not load requirements. Please try again.')
+    } finally {
+      setIsRequirementLoading(false)
+    }
+  }
+
+  loadRequirements()
+}, [activeSection, selectedProjectId, user])
 
 async function handleSubmit(event) {
 event.preventDefault()
@@ -282,10 +333,7 @@ return (
               )?.icon}
             </div>
             <h2>{activeSection}</h2>
-            <p>
-              This section is ready for the next development step.
-              We'll add its functionality as build_right grows.
-            </p>
+           
           {activeSection === 'Projects' && (
             <>
               <form
@@ -375,6 +423,140 @@ return (
               {message && <p role="status">{message}</p>}
             </>
           )}
+
+          {activeSection === 'Requirements' && (
+            <div className="requirements-container">
+              <h3>Project Requirements</h3>
+
+              {projects.length === 0 ? (
+                <p>Please create a project first.</p>
+              ) : (
+                <>
+                  <form
+                    className="project-form"
+                    onSubmit={async (event) => {
+                      event.preventDefault()
+                      setRequirementMessage('Creating requirement...')
+
+                      try {
+                        const token = sessionStorage.getItem('build_right_token')
+
+                        const response = await fetch(
+                          `http://localhost:8080/api/requirements/project/${selectedProjectId}`,
+                          {
+                            method: 'POST',
+                            headers: {
+                              'Content-Type': 'application/json',
+                              Authorization: `Bearer ${token}`,
+                            },
+                            body: JSON.stringify({
+                              title: requirementTitle.trim(),
+                              description: requirementDescription.trim(),
+                            }),
+                          }
+                        )
+
+                        if (!response.ok) {
+                          throw new Error(`Request failed: ${response.status}`)
+                        }
+
+                        const savedRequirement = await response.json()
+
+                        setRequirements((current) => [
+                          ...current,
+                          savedRequirement,
+                        ])
+
+                        setRequirementTitle('')
+                        setRequirementDescription('')
+                        setRequirementMessage('Requirement created successfully!')
+                      } catch (error) {
+                        console.error('Requirement creation failed:', error)
+                        setRequirementMessage(
+                          'Could not create requirement. Please check your login and backend.'
+                        )
+                      }
+                    }}
+                  >
+                    <label>
+                      Select project
+                      <select
+                        value={selectedProjectId}
+                        onChange={(event) =>
+                          setSelectedProjectId(event.target.value)
+                        }
+                        required
+                      >
+                        {projects.map((project) => (
+                          <option key={project.id} value={String(project.id)}>
+                            {project.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <label>
+                      Requirement title
+                      <input
+                        type="text"
+                        placeholder="e.g. User Login Functionality"
+                        value={requirementTitle}
+                        onChange={(event) =>
+                          setRequirementTitle(event.target.value)
+                        }
+                        required
+                      />
+                    </label>
+
+                    <label>
+                      Requirement description
+                      <textarea
+                        placeholder="Describe what the application should do..."
+                        value={requirementDescription}
+                        onChange={(event) =>
+                          setRequirementDescription(event.target.value)
+                        }
+                        rows={4}
+                      />
+                    </label>
+
+                    <button
+                      className="primary-action"
+                      type="submit"
+                      disabled={!selectedProjectId}
+                    >
+                      Add requirement
+                    </button>
+                  </form>
+
+                  {requirementMessage && (
+                    <p role="status">{requirementMessage}</p>
+                  )}
+
+                  <div className="requirements-list">
+                    <h3>Saved requirements</h3>
+
+                    {isRequirementLoading ? (
+                      <p>Loading requirements...</p>
+                    ) : requirements.length === 0 ? (
+                      <p>No requirements added to this project yet.</p>
+                    ) : (
+                      requirements.map((requirement) => (
+                        <article
+                          className="project-card"
+                          key={requirement.id}
+                        >
+                          <h4>{requirement.title}</h4>
+                          <p>{requirement.description}</p>
+                        </article>
+                      ))
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          )}          
+
         </section>
       </div>
     )}

@@ -943,3 +943,79 @@ display: none;
     width: 100%;
   }
 }
+
+/* Test Cases Section */
+
+.test-cases-container {
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+  text-align: left;
+  align-self: stretch;
+}
+
+.test-cases-container > h2 {
+  margin-bottom: 8px;
+}
+
+.test-cases-container > p {
+  margin-bottom: 24px;
+}
+
+.test-case-form {
+  background: #ffffff;
+  padding: 24px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  margin-bottom: 30px;
+}
+
+.test-case-form label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: #29233d;
+}
+
+.test-case-form select,
+.test-case-form input,
+.test-case-form textarea {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  margin-bottom: 18px;
+  border: 1px solid #dcd8e8;
+  border-radius: 8px;
+  font-size: 14px;
+  box-sizing: border-box;
+}
+
+.test-case-form textarea {
+  min-height: 100px;
+  resize: vertical;
+}
+
+.test-case-form button {
+  padding: 12px 22px;
+  background: #6035e8;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.test-case-form button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.test-cases-list {
+  margin-top: 24px;
+}
+
+.test-cases-list .project-card {
+  text-align: left;
+  margin-bottom: 16px;
+  padding: 20px;
+}

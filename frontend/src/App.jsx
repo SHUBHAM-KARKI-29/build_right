@@ -42,6 +42,14 @@ const [requirements, setRequirements] = useState([])
 const [requirementMessage, setRequirementMessage] = useState('')
 const [isRequirementLoading, setIsRequirementLoading] = useState(false)
 
+const [selectedRequirementId, setSelectedRequirementId] = useState('')
+const [testCaseTitle, setTestCaseTitle] = useState('')
+const [testCaseSteps, setTestCaseSteps] = useState('')
+const [testCaseExpectedResult, setTestCaseExpectedResult] = useState('')
+const [testCases, setTestCases] = useState([])
+const [testCaseMessage, setTestCaseMessage] = useState('')
+const [isTestCaseLoading, setIsTestCaseLoading] = useState(false)
+
 useEffect(() => {
   if (!user) return
 
@@ -77,7 +85,13 @@ useEffect(() => {
 }, [projects, selectedProjectId])
 
 useEffect(() => {
-  if (activeSection !== 'Requirements' || !selectedProjectId || !user) {
+  if (!selectedRequirementId && requirements.length > 0) {
+    setSelectedRequirementId(String(requirements[0].id))
+  }
+}, [requirements, selectedRequirementId])
+
+useEffect(() => {
+  if (!['Requirements', 'Test Cases'].includes(activeSection) || !selectedProjectId || !user) {
     return
   }
 
@@ -113,6 +127,44 @@ useEffect(() => {
 
   loadRequirements()
 }, [activeSection, selectedProjectId, user])
+
+useEffect(() => {
+  if (activeSection !== 'Test Cases' || !selectedRequirementId || !user) {
+    return
+  }
+
+  const loadTestCases = async () => {
+    setIsTestCaseLoading(true)
+    setTestCaseMessage('')
+
+    try {
+      const token = sessionStorage.getItem('build_right_token')
+
+      const response = await fetch(
+        `http://localhost:8080/api/test-cases/requirement/${selectedRequirementId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      )
+
+      if (!response.ok) {
+        throw new Error(`Request failed: ${response.status}`)
+      }
+
+      const data = await response.json()
+      setTestCases(data)
+    } catch (error) {
+      console.error('Error loading test cases:', error)
+      setTestCaseMessage('Could not load test cases. Please try again.')
+    } finally {
+      setIsTestCaseLoading(false)
+    }
+  }
+
+  loadTestCases()
+}, [activeSection, selectedRequirementId, user])
 
 async function handleSubmit(event) {
 event.preventDefault()
@@ -555,7 +607,171 @@ return (
                 </>
               )}
             </div>
-          )}          
+          )}
+
+          {activeSection === 'Test Cases' && (
+            <div className="test-cases-container">
+              <h2>Test Case Management</h2>
+              <p>Create and manage test cases for your requirements.</p>
+
+              {requirements.length === 0 ? (
+                <p>Please create a requirement first.</p>
+              ) : (
+                <>
+                  <div className="test-case-form">
+                    <label>Select Requirement</label>
+                    <select
+                      value={selectedRequirementId}
+                      onChange={(e) => setSelectedRequirementId(e.target.value)}
+                    >
+                      {requirements.map((requirement) => (
+                        <option key={requirement.id} value={requirement.id}>
+                          {requirement.title}
+                        </option>
+                      ))}
+                    </select>
+
+                    <form onSubmit={async (e) => {
+                      e.preventDefault()
+                      setIsTestCaseLoading(true)
+                      setTestCaseMessage('')
+
+                      try {
+                        const token = sessionStorage.getItem('build_right_token')
+
+                        const response = await fetch(
+                          `http://localhost:8080/api/test-cases/requirement/${selectedRequirementId}`,
+                          {
+                            method: 'POST',
+                            headers: {
+                              'Content-Type': 'application/json',
+                              Authorization: `Bearer ${token}`,
+                            },
+                            body: JSON.stringify({
+                              title: testCaseTitle,
+                              steps: testCaseSteps,
+                              expectedResult: testCaseExpectedResult,
+                            }),
+                          }
+                        )
+
+                        if (!response.ok) {
+                          throw new Error(`Request failed: ${response.status}`)
+                        }
+
+                        const savedTestCase = await response.json()
+                        setTestCases((previous) => [...previous, savedTestCase])
+                        setTestCaseTitle('')
+                        setTestCaseSteps('')
+                        setTestCaseExpectedResult('')
+                        setTestCaseMessage('Test case created successfully!')
+                      } catch (error) {
+                        console.error('Error creating test case:', error)
+                        setTestCaseMessage('Could not create test case. Please try again.')
+                      } finally {
+                        setIsTestCaseLoading(false)
+                      }
+                    }}>
+                      <label>Test Case Title</label>
+                      <input
+                        type="text"
+                        value={testCaseTitle}
+                        onChange={(e) => setTestCaseTitle(e.target.value)}
+                        placeholder="e.g. Verify login with valid credentials"
+                        required
+                      />
+
+                      <label>Test Steps</label>
+                      <textarea
+                        value={testCaseSteps}
+                        onChange={(e) => setTestCaseSteps(e.target.value)}
+                        placeholder="Enter the steps to execute the test"
+                        required
+                      />
+
+                      <label>Expected Result</label>
+                      <textarea
+                        value={testCaseExpectedResult}
+                        onChange={(e) => setTestCaseExpectedResult(e.target.value)}
+                        placeholder="Describe the expected outcome"
+                        required
+                      />
+
+                      <button type="submit" disabled={isTestCaseLoading}>
+                        {isTestCaseLoading ? 'Saving...' : 'Create Test Case'}
+                      </button>
+                    </form>
+                  </div>
+
+                  {testCaseMessage && (
+                    <p role="status">{testCaseMessage}</p>
+                  )}
+
+                  <div className="test-cases-list">
+                    <h3>Saved test cases</h3>
+
+                    {isTestCaseLoading ? (
+                      <p>Loading test cases...</p>
+                    ) : testCases.length === 0 ? (
+                      <p>No test cases added to this requirement yet.</p>
+                    ) : (
+                      testCases.map((testCase) => (
+                        <article className="project-card" key={testCase.id}>
+                          <h4>{testCase.title}</h4>
+                          <p><strong>Steps:</strong> {testCase.steps}</p>
+                          <p><strong>Expected result:</strong> {testCase.expectedResult}</p>
+                          
+                          <div className="test-case-status">
+                            <label>Status:</label>
+                            <select
+                              value={testCase.status}
+                              onChange={async (e) => {
+                                const newStatus = e.target.value
+
+                                try {
+                                  const token = sessionStorage.getItem('build_right_token')
+
+                                  const response = await fetch(
+                                    `http://localhost:8080/api/test-cases/${testCase.id}/status?status=${newStatus}`,
+                                    {
+                                      method: 'PATCH',
+                                      headers: {
+                                        Authorization: `Bearer ${token}`,
+                                      },
+                                    }
+                                  )
+
+                                  if (!response.ok) {
+                                    throw new Error(`Request failed: ${response.status}`)
+                                  }
+
+                                  setTestCases((previous) =>
+                                    previous.map((item) =>
+                                      item.id === testCase.id
+                                        ? { ...item, status: newStatus }
+                                        : item
+                                    )
+                                  )
+                                } catch (error) {
+                                  console.error('Error updating test case status:', error)
+                                  setTestCaseMessage('Could not update test case status.')
+                                }
+                              }}
+                            >
+                              <option value="NOT_RUN">Not Run</option>
+                              <option value="PASS">Pass</option>
+                              <option value="FAIL">Fail</option>
+                            </select>
+                          </div>                          
+
+                        </article>
+                      ))
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
 
         </section>
       </div>
